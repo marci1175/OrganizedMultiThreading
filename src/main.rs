@@ -20,17 +20,21 @@ fn more_expensive_calculation() -> i32 {
 
 #[tokio::main]
 async fn main() {
-    let wrapped_threads = vec![
+    let wrapped_threads= vec![
         ThreadWrapper::new(expensive_calculation),
         ThreadWrapper::new(expensive_calculation),
         ThreadWrapper::new(more_expensive_calculation),
     ];
 
+    let len = wrapped_threads.len();
+
     let mut recv = OrganizedThreads::new(wrapped_threads)
         .excecute_tasks()
         .await;
 
-    dbg!(recv.recv().await);
+    for _ in 0..len {
+        dbg!(recv.recv().await);
+    }
 
     println!("MAIN THREAD FINISHED");
 }
