@@ -20,7 +20,7 @@ fn more_expensive_calculation() -> i32 {
 
 #[tokio::main]
 async fn main() {
-    let wrapped_threads= vec![
+    let wrapped_threads = vec![
         ThreadWrapper::new(expensive_calculation),
         ThreadWrapper::new(expensive_calculation),
         ThreadWrapper::new(more_expensive_calculation),
