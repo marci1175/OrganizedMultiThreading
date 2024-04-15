@@ -1,6 +1,6 @@
-use std::fmt;
+use std::{fmt, sync::{atomic::AtomicBool, Arc}};
 
-use tokio::sync::mpsc::{self, Receiver};
+use tokio::sync::{mpsc::{self, Receiver}, Mutex, RwLock};
 
 #[derive(Debug, Clone)]
 pub struct WrappedValue<V> {
@@ -15,9 +15,9 @@ impl<V> WrappedValue<V> {
     }
 }
 
+#[derive(Clone)]
 pub struct ThreadWrapper<T> {
-    _inner_function_handle: tokio::task::JoinHandle<()>,
-    reciver: mpsc::Receiver<T>,
+    reciver: Arc<Mutex<mpsc::Receiver<T>>>,
 
     index: usize,
 }
@@ -31,21 +31,25 @@ where
         F: Fn() -> T + std::marker::Send + 'static,
     {
         let (sender, reciver) = mpsc::channel::<T>(1);
+
+        //Create thread
+        tokio::spawn(async move {
+            sender.send((function)()).await.expect("Failed to send out on channel");
+        });
+
         Self {
-            _inner_function_handle: tokio::spawn(async move {
-                sender.send((function)()).await.expect("Failed to send out on channel");
-            }),
-            reciver: reciver,
+            reciver: Arc::new(Mutex::new(reciver)),
             //Set as default
             index: 0,
         }
     }
 
     pub async fn recive_thread_output(&mut self) -> T {
-        self.reciver.recv().await.expect("Failed to signal start to thread")
+        self.reciver.lock().await.recv().await.expect("Failed to signal start to thread")
     }
 }
 
+#[derive(Clone)]
 pub struct OrganizedThreads<T>
 where
     T: std::marker::Send + 'static,
@@ -68,6 +72,10 @@ where
         }
 
         tasks
+    }
+
+    pub fn get_tasks(&self) -> &Vec<ThreadWrapper<T>> {
+        &self.tasks
     }
 
     pub async fn excecute_tasks(&mut self) -> Vec<WrappedValue<T>> {

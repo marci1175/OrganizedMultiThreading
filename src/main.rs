@@ -25,10 +25,16 @@ async fn main() {
         ThreadWrapper::new(expensive_calculation),
         ThreadWrapper::new(more_expensive_calculation),
     ];
+    
+    let mut values = OrganizedThreads::new(wrapped_threads);
+    
+    let values = values.excecute_tasks().await;
 
-    let values = OrganizedThreads::new(wrapped_threads)
-        .excecute_tasks()
-        .await;
+    for i in 0..99 {
+        println!("ASD{i}")   
+    }
+
+    
 
     println!("{values:?}");
 }
