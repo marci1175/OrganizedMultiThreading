@@ -26,15 +26,9 @@ async fn main() {
         ThreadWrapper::new(more_expensive_calculation),
     ];
 
-    let len = wrapped_threads.len();
-
-    let mut recv = OrganizedThreads::new(wrapped_threads)
+    let values = OrganizedThreads::new(wrapped_threads)
         .excecute_tasks()
         .await;
 
-    for _ in 0..len {
-        dbg!(recv.recv().await);
-    }
-
-    println!("MAIN THREAD FINISHED");
+    println!("{values:?}");
 }

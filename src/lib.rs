@@ -1,6 +1,6 @@
 use std::fmt;
 
-use tokio::sync::mpsc::{self};
+use tokio::sync::mpsc::{self, Receiver};
 
 #[derive(Debug, Clone)]
 pub struct WrappedValue<V> {
@@ -16,7 +16,7 @@ impl<V> WrappedValue<V> {
 }
 
 pub struct ThreadWrapper<T> {
-    inner_function_handle: tokio::task::JoinHandle<()>,
+    _inner_function_handle: tokio::task::JoinHandle<()>,
     reciver: mpsc::Receiver<T>,
 
     index: usize,
@@ -32,8 +32,7 @@ where
     {
         let (sender, reciver) = mpsc::channel::<T>(1);
         Self {
-            inner_function_handle: tokio::spawn(async move {
-                //This will block until it gets flagged to go
+            _inner_function_handle: tokio::spawn(async move {
                 sender.send((function)()).await.expect("Failed to send out on channel");
             }),
             reciver: reciver,
@@ -71,13 +70,19 @@ where
         tasks
     }
 
-    pub async fn excecute_tasks(self) -> mpsc::Receiver<WrappedValue<T>> {
-        let (sender, reciver) = mpsc::channel::<WrappedValue<T>>(self.tasks.len());
+    pub async fn excecute_tasks(&mut self) -> Vec<WrappedValue<T>> {
+        let (sender, mut reciver) = mpsc::channel::<WrappedValue<T>>(self.tasks.len());
 
-        for mut task in self.tasks {
+        for task in self.tasks.iter_mut() {
             sender.send(WrappedValue::new(task.recive_thread_output().await, task.index)).await.expect("Failed to send value to main thread");
         }
 
-        reciver
+        let mut returned_values: Vec<WrappedValue<T>> = Vec::new();
+
+        for _ in 0..self.tasks.len() {
+            returned_values.push(reciver.recv().await.expect("Recived a None value"));
+        }
+
+        returned_values
     }
 }
